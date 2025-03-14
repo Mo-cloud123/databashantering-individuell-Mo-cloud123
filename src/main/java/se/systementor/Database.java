@@ -1,38 +1,53 @@
 package se.systementor;
 
+import se.systementor.DB.DatabaseConnection;
+import se.systementor.models.Product;
+
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Database {
-    String url = "jdbc:mysql://localhost:3306/northwind";
-    String user = "root";
-    String password = "hejsan123";
 
+    // Hämtar alla produkter från databasen
+    public List<Product> getAllProducts() {
+        List<Product> products = new ArrayList<>();
+        String sql = "SELECT ProductId, Name, Price, VatRate, CategoryId FROM products";
 
-    protected Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(url,user,password);
-    }
-
-    public List<String> activeProducts(){
-        ArrayList<String> products = new ArrayList<String>();
-
-        try {
-            Connection conn = getConnection();
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery("SELECT ProductName FROM Products WHERE discontinued=0");
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
-                products.add(rs.getString("ProductName"));
+                products.add(new Product(
+                        rs.getInt("ProductId"),
+                        rs.getString("Name"),
+                        rs.getDouble("Price"),
+                        rs.getDouble("VatRate"),
+                        rs.getInt("CategoryId")
+                ));
             }
-
-            rs.close();
-            stmt.close();
-            conn.close();
-        } catch (Exception e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
         return products;
+    }
+
+
+    // Hämtar nästa kvittonummer
+    public int getNextReceiptNumber() {
+        String sql = "SELECT MAX(ReceiptNumber) AS MaxReceipt FROM orders";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            if(rs.next()) {
+                return rs.getInt("MaxReceipt") + 1;
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching next receipt number: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return 1; // Börja med kvittonummer 1 om inget hittas
     }
 
 }
